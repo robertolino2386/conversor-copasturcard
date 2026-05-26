@@ -134,9 +134,16 @@
       margin-bottom: 24px;
     }
 
-    .campo-vcn {
-      max-width: 360px;
+    .campos-formulario {
+      max-width: 620px;
       margin: 0 auto 22px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      text-align: left;
+    }
+
+    .campo-vcn {
       text-align: left;
     }
 
@@ -258,6 +265,12 @@
       font-style: italic;
     }
 
+    @media (max-width: 720px) {
+      .campos-formulario {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 560px) {
       .topo, .conteudo {
         padding: 26px 20px;
@@ -288,9 +301,21 @@
           <h2>Enviar relatório recebido</h2>
           <p>O sistema reorganiza as colunas automaticamente e gera o novo modelo a partir da linha 9.</p>
 
-          <div class="campo-vcn">
-            <label for="vcnInput">VCN</label>
-            <input id="vcnInput" type="text" placeholder="Informe o VCN" />
+          <div class="campos-formulario">
+            <div class="campo-vcn">
+              <label for="vcnInput">VCN</label>
+              <input id="vcnInput" type="text" placeholder="Informe o VCN" />
+            </div>
+
+            <div class="campo-vcn">
+              <label for="vencimentoInput">Vencimento</label>
+              <input id="vencimentoInput" type="month" />
+            </div>
+
+            <div class="campo-vcn">
+              <label for="clienteInput">Nome do cliente</label>
+              <input id="clienteInput" type="text" placeholder="Ex: Copastur" />
+            </div>
           </div>
 
           <input id="arquivoInput" type="file" accept=".xls,.xlsx,.xlsm" />
@@ -313,6 +338,8 @@
   <script>
     const arquivoInput = document.getElementById('arquivoInput');
     const vcnInput = document.getElementById('vcnInput');
+    const vencimentoInput = document.getElementById('vencimentoInput');
+    const clienteInput = document.getElementById('clienteInput');
     const converterBtn = document.getElementById('converterBtn');
     const baixarBtn = document.getElementById('baixarBtn');
     const arquivoNome = document.getElementById('arquivoNome');
@@ -479,6 +506,18 @@
       return resultado;
     }
 
+    function limparNomeArquivo(texto) {
+      return String(texto || '')
+        .trim()
+        .replace(/[\/:*?"<>|]/g, '')
+        .replace(/ +/g, '_');
+    }
+
+    function primeiroNomeCliente(nome) {
+      const partes = String(nome || '').trim().split(' ').filter(Boolean);
+      return partes.length ? partes[0] : 'Cliente';
+    }
+
     function criarPlanilhaFinal(dados) {
       const ws = {};
 
@@ -537,8 +576,21 @@
       if (!arquivoSelecionado) return;
 
       const vcn = vcnInput.value.trim();
+      const vencimento = vencimentoInput.value.trim();
+      const cliente = clienteInput.value.trim();
+
       if (!vcn) {
         mostrarMensagem('Informe o VCN antes de converter o arquivo.', 'erro');
+        return;
+      }
+
+      if (!vencimento) {
+        mostrarMensagem('Informe o vencimento no formato ano e mês antes de converter.', 'erro');
+        return;
+      }
+
+      if (!cliente) {
+        mostrarMensagem('Informe o nome do cliente antes de converter.', 'erro');
         return;
       }
 
@@ -571,9 +623,11 @@
 
     baixarBtn.addEventListener('click', () => {
       if (!workbookConvertido) return;
-      XLSX.writeFile(workbookConvertido, 'faturamento_vcn_convertido.xlsx');
+      const vencimento = vencimentoInput.value.trim() || '0000-00';
+      const cliente = limparNomeArquivo(primeiroNomeCliente(clienteInput.value));
+      const nomeArquivo = `Grupo_${cliente}_${vencimento}.xlsx`;
+      XLSX.writeFile(workbookConvertido, nomeArquivo);
     });
   </script>
 </body>
 </html>
-
