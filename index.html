@@ -308,8 +308,8 @@
             </div>
 
             <div class="campo-vcn">
-              <label for="vencimentoInput">Vencimento</label>
-              <input id="vencimentoInput" type="month" />
+              <label for="vencimentoInput">Data de vencimento</label>
+              <input id="vencimentoInput" type="date" />
             </div>
 
             <div class="campo-vcn">
@@ -523,6 +523,8 @@
 
       ws['A1'] = { t: 's', v: 'Layout de Faturamento' };
       ws['A2'] = { t: 's', v: 'Arquivo convertido automaticamente' };
+      ws['A4'] = { t: 's', v: clienteInput.value.trim() };
+      ws['G4'] = { t: 'd', v: new Date(vencimentoInput.value + 'T00:00:00'), z: 'dd/mm/yyyy' };
       ws['I5'] = { t: 's', v: 'Total' };
       ws['J5'] = { t: 'n', f: dados.length ? `SUM(E9:E${dados.length + 8})` : '0', z: 'R$ #,##0.00' };
 
@@ -585,7 +587,7 @@
       }
 
       if (!vencimento) {
-        mostrarMensagem('Informe o vencimento no formato ano e mês antes de converter.', 'erro');
+        mostrarMensagem('Informe a data de vencimento antes de converter.', 'erro');
         return;
       }
 
@@ -623,9 +625,10 @@
 
     baixarBtn.addEventListener('click', () => {
       if (!workbookConvertido) return;
-      const vencimento = vencimentoInput.value.trim() || '0000-00';
+      const vencimento = vencimentoInput.value.trim() || '0000-00-00';
+      const vencimentoArquivo = vencimento.slice(0, 7);
       const cliente = limparNomeArquivo(primeiroNomeCliente(clienteInput.value));
-      const nomeArquivo = `Grupo_${cliente}_${vencimento}.xlsx`;
+      const nomeArquivo = `Grupo_${cliente}_${vencimentoArquivo}.xlsx`;
       XLSX.writeFile(workbookConvertido, nomeArquivo);
     });
   </script>
