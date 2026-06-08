@@ -430,28 +430,73 @@
     }
 
     function converterData(valor) {
-      if (!valor) return '';
-      if (valor instanceof Date) return valor;
-      if (typeof valor === 'number') {
-        const data = XLSX.SSF.parse_date_code(valor);
-        if (!data) return valor;
-        return new Date(data.y, data.m - 1, data.d);
-      }
+  if (!valor) return '';
 
-      const texto = String(valor).trim();
-      const dataBR = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-      if (dataBR) {
-        const dia = Number(dataBR[1]);
-        const mes = Number(dataBR[2]) - 1;
-        let ano = Number(dataBR[3]);
-        if (ano < 100) ano += 2000;
-        return new Date(ano, mes, dia);
-      }
+  if (valor instanceof Date) {
+    return new Date(
+      valor.getFullYear(),
+      valor.getMonth(),
+      valor.getDate(),
+      12, 0, 0
+    );
+  }
 
-      const data = new Date(texto);
-      return Number.isNaN(data.getTime()) ? texto : data;
-    }
+  if (typeof valor === 'number') {
+    const data = XLSX.SSF.parse_date_code(valor);
 
+    if (!data) return valor;
+
+    return new Date(
+      data.y,
+      data.m - 1,
+      data.d,
+      12, 0, 0
+    );
+  }
+
+  const texto = String(valor).trim();
+
+  const dataBR = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+
+  if (dataBR) {
+    const dia = Number(dataBR[1]);
+    const mes = Number(dataBR[2]) - 1;
+    let ano = Number(dataBR[3]);
+
+    if (ano < 100) ano += 2000;
+
+    return new Date(
+      ano,
+      mes,
+      dia,
+      12, 0, 0
+    );
+  }
+
+  const dataISO = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (dataISO) {
+    return new Date(
+      Number(dataISO[1]),
+      Number(dataISO[2]) - 1,
+      Number(dataISO[3]),
+      12, 0, 0
+    );
+  }
+
+  const data = new Date(texto);
+
+  if (Number.isNaN(data.getTime())) {
+    return texto;
+  }
+
+  return new Date(
+    data.getFullYear(),
+    data.getMonth(),
+    data.getDate(),
+    12, 0, 0
+  );
+}
     function tratarCidade(valor) {
       const texto = String(valor ?? '').trim();
       if (!texto || texto === '/') return '';
