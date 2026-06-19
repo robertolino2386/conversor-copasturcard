@@ -429,74 +429,77 @@
       return numero;
     }
 
+    function criarSerialDataExcel(ano, mes, dia) {
+      const dataUTC = Date.UTC(ano, mes, dia);
+      const baseExcelUTC = Date.UTC(1899, 11, 30);
+      return Math.round((dataUTC - baseExcelUTC) / 86400000);
+    }
+
     function converterData(valor) {
-  if (!valor) return '';
+      if (!valor) return '';
 
-  if (valor instanceof Date) {
-    return new Date(
-      valor.getFullYear(),
-      valor.getMonth(),
-      valor.getDate(),
-      12, 0, 0
-    );
-  }
+      if (valor instanceof Date) {
+        return criarSerialDataExcel(
+          valor.getFullYear(),
+          valor.getMonth(),
+          valor.getDate()
+        );
+      }
 
-  if (typeof valor === 'number') {
-    const data = XLSX.SSF.parse_date_code(valor);
+      if (typeof valor === 'number') {
+        return valor;
+      }
 
-    if (!data) return valor;
+      const texto = String(valor).trim();
 
-    return new Date(
-      data.y,
-      data.m - 1,
-      data.d,
-      12, 0, 0
-    );
-  }
+      const dataBR = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
 
-  const texto = String(valor).trim();
+      if (dataBR) {
+        const dia = Number(dataBR[1]);
+        const mes = Number(dataBR[2]) - 1;
+        let ano = Number(dataBR[3]);
 
-  const dataBR = texto.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+        if (ano < 100) ano += 2000;
 
-  if (dataBR) {
-    const dia = Number(dataBR[1]);
-    const mes = Number(dataBR[2]) - 1;
-    let ano = Number(dataBR[3]);
+        return criarSerialDataExcel(ano, mes, dia);
+      }
 
-    if (ano < 100) ano += 2000;
+      const dataISO = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
 
-    return new Date(
-      ano,
-      mes,
-      dia,
-      12, 0, 0
-    );
-  }
+      if (dataISO) {
+        const ano = Number(dataISO[1]);
+        const mes = Number(dataISO[2]) - 1;
+        const dia = Number(dataISO[3]);
 
-  const dataISO = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return criarSerialDataExcel(ano, mes, dia);
+      }
 
-  if (dataISO) {
-    return new Date(
-      Number(dataISO[1]),
-      Number(dataISO[2]) - 1,
-      Number(dataISO[3]),
-      12, 0, 0
-    );
-  }
+      const data = new Date(texto);
 
-  const data = new Date(texto);
+      if (Number.isNaN(data.getTime())) {
+        return texto;
+      }
 
-  if (Number.isNaN(data.getTime())) {
-    return texto;
-  }
+      return criarSerialDataExcel(
+        data.getFullYear(),
+        data.getMonth(),
+        data.getDate()
+      );
+    }
 
-  return new Date(
-    data.getFullYear(),
-    data.getMonth(),
-    data.getDate(),
-    12, 0, 0
-  );
-}
+    function converterDataInputParaExcel(valor) {
+      const texto = String(valor || '').trim();
+      const dataISO = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+      if (!dataISO) return '';
+
+      const ano = Number(dataISO[1]);
+      const mes = Number(dataISO[2]) - 1;
+      const dia = Number(dataISO[3]);
+
+      return criarSerialDataExcel(ano, mes, dia);
+    }
+
     function tratarCidade(valor) {
       const texto = String(valor ?? '').trim();
       if (!texto || texto === '/') return '';
@@ -569,7 +572,10 @@
       ws['A1'] = { t: 's', v: 'Layout de Faturamento' };
       ws['A2'] = { t: 's', v: 'Arquivo convertido automaticamente' };
       ws['A4'] = { t: 's', v: clienteInput.value.trim() };
-      ws['G4'] = { t: 'd', v: new Date(vencimentoInput.value + 'T00:00:00'), z: 'dd/mm/yyyy' };
+      const vencimentoExcel = converterDataInputParaExcel(vencimentoInput.value);
+      ws['G4'] = vencimentoExcel
+        ? { t: 'n', v: vencimentoExcel, z: 'dd/mm/yyyy' }
+        : { t: 's', v: '' };
       ws['I5'] = { t: 's', v: 'Total' };
       ws['J5'] = { t: 'n', f: dados.length ? `SUM(E9:E${dados.length + 8})` : '0', z: 'R$ #,##0.00' };
 
@@ -583,8 +589,8 @@
           const endereco = XLSX.utils.encode_cell({ r: rowIndex + 8, c: colIndex });
           const valor = linha[cabecalho];
 
-          if (valor instanceof Date) {
-            ws[endereco] = { t: 'd', v: valor, z: 'dd/mm/yyyy' };
+          if (['Data transação', 'Check-in', 'Check-out'].includes(cabecalho) && typeof valor === 'number') {
+            ws[endereco] = { t: 'n', v: valor, z: 'dd/mm/yyyy' };
           } else if (typeof valor === 'number') {
             ws[endereco] = { t: 'n', v: valor, z: colIndex === 4 ? 'R$ #,##0.00' : '0.00' };
           } else {
@@ -643,7 +649,7 @@
 
       try {
         const buffer = await arquivoSelecionado.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
+        const workbook = XLSX.read(buffer, { type: 'array', cellDates: false });
         const nomeAba = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[nomeAba];
         const linhas = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: true });
